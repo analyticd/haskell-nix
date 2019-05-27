@@ -1,13 +1,19 @@
-# Advanced dependency management
+* Readme
+** Advanced dependency management
+  :PROPERTIES:
+  :CUSTOM_ID: advanced-dependency-management
+  :END:
 
+#+BEGIN_HTML
 <meta charset="UTF-8">
+#+END_HTML
 
-This section covers how to automate dependency management so that people less
-familiar with Nix can easily contribute to your project
+This section covers how to automate dependency management so that people
+less familiar with Nix can easily contribute to your project
 
-Let's begin by considering a variation on the example from `project1`:
+Let's begin by considering a variation on the example from =project1=:
 
-```nix
+#+BEGIN_EXAMPLE nix
 let
   config = {
     packageOverrides = pkgs: rec {
@@ -35,21 +41,21 @@ let
 in
   { project4 = pkgs.haskellPackages.project4;
   }
-```
+#+END_EXAMPLE
 
-Here we pin the versions of three dependencies: `optparse-applicative`, `foldl`,
-and `turtle`.  Additionally, we disable tests for `optparse-applicative` (since
-they fail) and jailbreak `turtle` because our new `foldl` dependency is out of
-bounds for `turtle`.
+Here we pin the versions of three dependencies: =optparse-applicative=,
+=foldl=, and =turtle=. Additionally, we disable tests for
+=optparse-applicative= (since they fail) and jailbreak =turtle= because
+our new =foldl= dependency is out of bounds for =turtle=.
 
-This time we've moved all of our package derivations underneath the `nix/`
-subdirectory so that we can take advantage of the handy `builtins.readDir`
-function to automate some dependency boilerplate.
+This time we've moved all of our package derivations underneath the
+=nix/= subdirectory so that we can take advantage of the handy
+=builtins.readDir= function to automate some dependency boilerplate.
 
-`release1.nix` shows an example of automating the addition of any Haskell
-package that we store underneath the `nix/` subdirectory:
+=release1.nix= shows an example of automating the addition of any
+Haskell package that we store underneath the =nix/= subdirectory:
 
-```nix
+#+BEGIN_EXAMPLE nix
 let
   config = {
     packageOverrides = pkgs: rec {
@@ -83,11 +89,11 @@ let
 in
   { project4 = pkgs.haskellPackages.project4;
   }
-```
+#+END_EXAMPLE
 
-In the above code, the`packages` sub-expression expands out to:
+In the above code, the =packages= sub-expression expands out to:
 
-```haskell
+#+BEGIN_SRC nix
 { foldl =
     haskellPackagesNew.callPackage ./nix/foldl.nix { };
 
@@ -100,11 +106,11 @@ In the above code, the`packages` sub-expression expands out to:
   turtle =
     haskellPackagesNew.callPackage ./nix/turtle.nix { };
 }
-```
+#+END_SRC
 
 ... which we then merge with the record of package-specific tweaks:
 
-```nix
+#+BEGIN_EXAMPLE nix
 { foldl =
     haskellPackagesNew.callPackage ./nix/foldl.nix { };
 
@@ -125,11 +131,12 @@ In the above code, the`packages` sub-expression expands out to:
     pkgs.haskell.lib.doJailbreak
       (haskellPackagesNew.callPackage ./nix/turtle.nix { });
 };
-```
+#+END_EXAMPLE
 
-The latter record takes precedence when merging the two, so the final result is:
+The latter record takes precedence when merging the two, so the final
+result is:
 
-```nix
+#+BEGIN_EXAMPLE nix
 { foldl =
     haskellPackagesNew.callPackage ./nix/foldl.nix { };
 
@@ -144,11 +151,11 @@ The latter record takes precedence when merging the two, so the final result is:
     pkgs.haskell.lib.doJailbreak
       (haskellPackagesNew.callPackage ./nix/turtle.nix { });
 };
-```
+#+END_EXAMPLE
 
-... which matches the set of overrides in our original `release0.nix`
+... which matches the set of overrides in our original =release0.nix=
 
-```nix
+#+BEGIN_EXAMPLE nix
 let
   config = {
     packageOverrides = pkgs: rec {
@@ -182,27 +189,32 @@ let
 in
   { project4 = pkgs.haskellPackages.project4;
   }
-```
+#+END_EXAMPLE
 
-# Composing overrides
+** Composing overrides
+  :PROPERTIES:
+  :CUSTOM_ID: composing-overrides
+  :END:
 
-In the above example we had to throw away some of our auto-generated overrides
-because we need to customize them.  For example, we need to jailbreak `turtle`,
-so we have to repeat the import of the `./nix/turtle.nix` derivation.
+In the above example we had to throw away some of our auto-generated
+overrides because we need to customize them. For example, we need to
+jailbreak =turtle=, so we have to repeat the import of the
+=./nix/turtle.nix= derivation.
 
-However, we can get the best of both worlds by decomposing our Haskell overrides
-into two separate sets of overrides:
+However, we can get the best of both worlds by decomposing our Haskell
+overrides into two separate sets of overrides:
 
-* The first set of overrides we auto-generate from the `nix/` subdirectory
-* In the second set of overrides we manually tweak Haskell packages
+- The first set of overrides we auto-generate from the =nix/=
+  subdirectory
+- In the second set of overrides we manually tweak Haskell packages
 
 In order to do this, we take advantage of a useful utility called
-`composeExtensions`.  As the name suggests, this lets us combine two extensions
-into a single extension to our Haskell package overrides.
+=composeExtensions=. As the name suggests, this lets us combine two
+extensions into a single extension to our Haskell package overrides.
 
-`release2.nix` demonstrates how this works:
+=release2.nix= demonstrates how this works:
 
-```nix
+#+BEGIN_EXAMPLE nix
 let
   config = {
     packageOverrides = pkgs: rec {
@@ -241,30 +253,31 @@ let
 in
   { project4 = pkgs.haskellPackages.project4;
   }
-```
+#+END_EXAMPLE
 
-Composing two extensions applies them in order: first we override the Haskell
-derivations with the ones found in the `nix/` subdirectory and then we tweak
-some of them by jailbreaking or disabling tests.
+Composing two extensions applies them in order: first we override the
+Haskell derivations with the ones found in the =nix/= subdirectory and
+then we tweak some of them by jailbreaking or disabling tests.
 
-When we modify a derivation like `turtle` we now define the modification in
-terms of `haskellPackagesOld`:
+When we modify a derivation like =turtle= we now define the modification
+in terms of =haskellPackagesOld=:
 
-```haskell
-  turtle = pkgs.haskell.lib.doJailbreak haskellPackagesOld.turtle;
-```
+#+BEGIN_SRC haskell
+turtle = pkgs.haskell.lib.doJailbreak haskellPackagesOld.turtle;
+#+END_SRC
 
-This is because `haskellPackagesOld.turtle` now refers to our updated `turtle`
-derivation from the preceding generated overrides.
+This is because =haskellPackagesOld.turtle= now refers to our updated
+=turtle= derivation from the preceding generated overrides.
 
-We can take advantage of this trick to organize our overrides into sections:
-one set of overrides for disabling tests, another set of overrides for
-jailbreaking packages, and another set of overrides for disabling haddocks.
+We can take advantage of this trick to organize our overrides into
+sections: one set of overrides for disabling tests, another set of
+overrides for jailbreaking packages, and another set of overrides for
+disabling haddocks.
 
-The following `release3.nix` shows how to take advantage of Nix's automation
-features to streamline such a configuration:
+The following =release3.nix= shows how to take advantage of Nix's
+automation features to streamline such a configuration:
 
-```nix
+#+BEGIN_EXAMPLE nix
 let
   # Disable tests for these packages
   dontCheckPackages = [
@@ -331,25 +344,25 @@ let
 in
   { project4 = pkgs.haskellPackages.project4;
   }
-```
+#+END_EXAMPLE
 
-This sort of automation simplifies the contribution for people less familiar
-with Nix.  They can add new package versions by running:
+This sort of automation simplifies the contribution for people less
+familiar with Nix. They can add new package versions by running:
 
-```bash
-$ cabal2nix ... > nix/${PACKAGE_NAME}.nix
-```
+#+BEGIN_SRC sh
+cabal2nix ... > nix/${PACKAGE_NAME}.nix
+#+END_SRC
 
-... and they can control jailbreaking, tests, haddocks from simple lists at the
-top of the configuration file.  Advanced users can still customize in more
-detail inside the `manualOverrides` section.
+... and they can control jailbreaking, tests, haddocks from simple lists
+at the top of the configuration file. Advanced users can still customize
+in more detail inside the =manualOverrides= section.
 
-The above example uses a handy `composeExtensionsList` function, which allows
-you to easily add or subtract sets of extensions.  For example, you can turn
-haddock generation back on for all packages by just commenting out the line for
-haddock package overrides:
+The above example uses a handy =composeExtensionsList= function, which
+allows you to easily add or subtract sets of extensions. For example,
+you can turn haddock generation back on for all packages by just
+commenting out the line for haddock package overrides:
 
-```nix
+#+BEGIN_EXAMPLE nix
   overrides = composeExtensionsList [
     generatedOverrides
     (makeOverrides pkgs.haskell.lib.dontCheck   dontCheckPackages  )
@@ -357,26 +370,29 @@ haddock package overrides:
 #   (makeOverrides pkgs.haskell.lib.dontHaddock dontHaddockPackages)
     manualOverrides
   ];
-```
+#+END_EXAMPLE
 
-Similarly, you might require some overrides to get your Haskell IDE to work.
-You can add such overrides to the list easily, like this:
+Similarly, you might require some overrides to get your Haskell IDE to
+work. You can add such overrides to the list easily, like this:
 
-```nix
-  overrides = composeExtensionsList [
-    generatedOverrides
-    (makeOverrides pkgs.haskell.lib.dontCheck   dontCheckPackages  )
-    (makeOverrides pkgs.haskell.lib.doJailbreak doJailbreakPackages)
-    (makeOverrides pkgs.haskell.lib.dontHaddock dontHaddockPackages)
-    (./import ~/myHaskellOverrides.nix)
-    manualOverrides
-  ];
-```
+#+BEGIN_EXAMPLE nix
+overrides = composeExtensionsList [
+  generatedOverrides
+  (makeOverrides pkgs.haskell.lib.dontCheck   dontCheckPackages  )
+  (makeOverrides pkgs.haskell.lib.doJailbreak doJailbreakPackages)
+  (makeOverrides pkgs.haskell.lib.dontHaddock dontHaddockPackages)
+  (./import ~/myHaskellOverrides.nix)
+  manualOverrides
+];
+#+END_EXAMPLE
 
-Nix is a programming language, so you can easily create these domain-specific
-languages for others to configure your Haskell build.
+Nix is a programming language, so you can easily create these
+domain-specific languages for others to configure your Haskell build.
 
-# Conclusion
+** Conclusion
+  :PROPERTIES:
+  :CUSTOM_ID: conclusion
+  :END:
 
-This concludes the section on automating dependency management.  This is the
-last section of the tutorial.
+This concludes the section on automating dependency management. This is
+the last section of the tutorial.
